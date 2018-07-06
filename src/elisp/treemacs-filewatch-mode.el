@@ -135,7 +135,7 @@ An event counts as relevant when
                   (not treemacs-git-mode))
              (--any? (funcall it (f-filename dir) dir) treemacs-ignored-file-predicates)))))
 
-(defsubst treemacs--set-refresh-flags (path)
+(defsubst treemacs--set-refresh-flags (path changed-file change-type)
   "Set refresh flags for PATH in the shadow index of every buffer.
 Also start the refresh timer if it's not started already."
   (when (with-no-warnings treemacs-filewatch-mode)
@@ -144,7 +144,9 @@ Also start the refresh timer if it's not started already."
       (treemacs--stop-watching path))
     (treemacs-run-in-every-buffer
      (--when-let (treemacs-get-from-shadow-index path)
-       (setf (treemacs-shadow-node->refresh-flag it) t))
+       (setf (treemacs-shadow-node->refresh-flag it)
+             (cons (cons changed-file change-type)
+                   (treemacs-shadow-node->refresh-flag it))))
      (unless treemacs--refresh-timer
        (setq treemacs--refresh-timer
              (run-at-time (format "%s millisecond" treemacs-file-event-delay) nil
@@ -157,17 +159,16 @@ Do nothing if this event's file is irrelevant as per
 events if it has not been started already. Also immediately remove the changed
 file from caches if it has been deleted instead of waiting for file processing."
   (when (treemacs--is-event-relevant? event)
-    (-let [(_ event-type path) event]
+    (-let [(_ event-type path new-name) event]
       (when (eq 'deleted event-type)
-        (treemacs--on-file-deletion (cl-third event) t))
+        (treemacs--on-file-deletion path t))
       (if (eq 'renamed event-type)
-          (-let- [(old-name path)
-                  (new-name (cl-fourth event))]
+          (-let [old-name path]
             (treemacs-run-in-every-buffer
              (treemacs--on-rename old-name new-name))
-            (treemacs--set-refresh-flags (treemacs--nearest-parent-directory old-name))
-            (treemacs--set-refresh-flags (treemacs--nearest-parent-directory new-name)))
-        (treemacs--set-refresh-flags (treemacs--parent path))))))
+            (treemacs--set-refresh-flags (treemacs--nearest-parent-directory old-name) path event-type)
+            (treemacs--set-refresh-flags (treemacs--nearest-parent-directory new-name) path event-type))
+        (treemacs--set-refresh-flags (treemacs--parent path) path event-type)))))
 
 (defsubst treemacs--do-process-file-events ()
   "Dumb helper function.

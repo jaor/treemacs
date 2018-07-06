@@ -211,9 +211,20 @@ parents' git status can be updated."
     (if (treemacs-shadow-node->refresh-flag node)
         (progn
           (push node refreshed-nodes)
-          (treemacs--refresh-dir (treemacs-shadow-node->key node))
-          (treemacs--do-for-all-child-nodes node
-            #'treemacs-shadow-node->reset-refresh-flag))
+          (-let [(deletes other-flags)
+                 (--separate (eq 'deleted (elt it 3))
+                             (treemacs-shadow-node->refresh-flag node))]
+            (if other-flags
+                (progn
+                  (treemacs--refresh-dir (treemacs-shadow-node->key node))
+                  (treemacs--do-for-all-child-nodes node
+                    #'treemacs-shadow-node->reset-refresh-flag))
+              (dolist (delete deletes)
+                (-let [(_ file-path _) delete]
+                  ;; FIXME find project once
+                  (treemacs-with-writable-buffer
+                   (treemacs-goto-button file-path)
+                   (kill-line)))))))
       (dolist (child (treemacs-shadow-node->children node))
         (setq refreshed-nodes
               (nconc refreshed-nodes
