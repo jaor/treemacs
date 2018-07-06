@@ -210,21 +210,23 @@ parents' git status can be updated."
   (-let [refreshed-nodes nil]
     (if (treemacs-shadow-node->refresh-flag node)
         (progn
+          (treemacs-log "Refresh Flag Content %s" (treemacs-shadow-node->refresh-flag node))
           (push node refreshed-nodes)
           (-let [(deletes other-flags)
-                 (--separate (eq 'deleted (elt it 3))
+                 (--separate (eq 'deleted (cdr it))
                              (treemacs-shadow-node->refresh-flag node))]
+            (treemacs-log "Separated lists %s %s" deletes other-flags)
             (if other-flags
                 (progn
                   (treemacs--refresh-dir (treemacs-shadow-node->key node))
                   (treemacs--do-for-all-child-nodes node
                     #'treemacs-shadow-node->reset-refresh-flag))
               (dolist (delete deletes)
-                (-let [(_ file-path _) delete]
+                (-let [(file-path . _)  delete]
                   ;; FIXME find project once
                   (treemacs-with-writable-buffer
                    (treemacs-goto-button file-path)
-                   (kill-line)))))))
+                   (kill-whole-line)))))))
       (dolist (child (treemacs-shadow-node->children node))
         (setq refreshed-nodes
               (nconc refreshed-nodes
@@ -235,15 +237,20 @@ parents' git status can be updated."
   "Recursively descend the shadow tree, updating only the refresh-marked nodes.
 If the root is marked simply reset all refresh flags and run `treemacs-refresh'
 instead."
-  (-let [projects (treemacs-workspace->projects (treemacs-current-workspace))]
-    (dolist (project projects)
-      (-when-let- [root-node (-> project (treemacs-project->path) (treemacs-get-from-shadow-index))]
-        (if (treemacs-shadow-node->refresh-flag root-node)
-            (progn
-              (treemacs--do-for-all-child-nodes root-node #'treemacs-shadow-node->reset-refresh-flag)
-              (treemacs--do-refresh (current-buffer) project))
-          (dolist (root-child (treemacs-shadow-node->children root-node))
-            (treemacs--recursive-refresh-descent root-child)))))))
+  (-let [start 0]
+    (garbage-collect)
+    (treemacs-log "Starting Recursive Descent Refresh")
+    (setq start (float-time))
+    (-let [projects (treemacs-workspace->projects (treemacs-current-workspace))]
+      (dolist (project projects)
+        (-when-let- [root-node (-> project (treemacs-project->path) (treemacs-get-from-shadow-index))]
+          (if (treemacs-shadow-node->refresh-flag root-node)
+              (progn
+                (treemacs--do-for-all-child-nodes root-node #'treemacs-shadow-node->reset-refresh-flag)
+                (treemacs--do-refresh (current-buffer) project))
+            (dolist (root-child (treemacs-shadow-node->children root-node))
+              (treemacs--recursive-refresh-descent root-child))))))
+    (treemacs-log "Finished Recursive Descent Refresh in %s time\n" (- (float-time) start))))
 
 (provide 'treemacs-structure)
 
