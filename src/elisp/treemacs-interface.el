@@ -610,7 +610,7 @@ For slower scrolling see `treemacs-previous-line-other-window'"
 (defun treemacs-next-project ()
   "Move to the next project root node."
   (interactive)
-  (-let [pos (next-single-char-property-change (point-at-eol) :project)]
+  (-let [pos (treemacs--next-project-pos)]
     (if (or (= pos (point))
             (= pos (point-max)))
         (treemacs-pulse-on-failure "There is no next project to move to.")
@@ -934,6 +934,30 @@ Only works with a single project in the workspace."
             (nth index2 projects) project1)
       (treemacs--persist)
       (recenter))))
+
+(defun treemacs-edit-workspaces ()
+  "Edit your treemacs workspaces and projects as an org file."
+  (interactive)
+  (require 'org)
+  (require 'outline)
+  (unless (file-exists-p treemacs-persist-file)
+    (treemacs--persist))
+  (switch-to-buffer (get-buffer-create "*Edit Treemacs Workspaces*"))
+  (erase-buffer)
+  (org-mode)
+  (insert-file-contents treemacs-persist-file)
+  (with-no-warnings
+    (outline-show-all))
+  (goto-char 0))
+
+(defun treemacs-finish-edit ()
+  "Finish editing your workspaces and apply the change."
+  (interactive)
+  (f-write (buffer-string) 'utf-8 treemacs-persist-file)
+  (kill-buffer)
+  ;; TODO(2018/12/13): sanity checking
+  (treemacs--restore)
+  (treemacs--consolidate-projects))
 
 (provide 'treemacs-interface)
 

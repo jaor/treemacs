@@ -106,7 +106,7 @@ ITER: Treemacs-Iter struct"
             (-let [(key val) (s-split " :: " kv-line)]
               (pcase (s-trim key)
                 ("- path"
-                 (setf (treemacs-project->path project) val))
+                 (setf (treemacs-project->path project) (treemacs--canonical-path val)))
                 (_
                  (treemacs-log "Encountered unknown project key-value in line [%s]" kv-line)))))
           (if (-> project (treemacs-project->path) (file-exists-p) (not))
@@ -128,7 +128,7 @@ ITER: Treemacs-Iter struct"
               (no-kill nil))
           (--if-let (get-file-buffer treemacs-persist-file)
               (setq buffer it)
-            (setq buffer (find-file-noselect treemacs-persist-file :no-warn :literally)
+            (setq buffer (find-file-noselect treemacs-persist-file :no-warn)
                   no-kill t))
           (with-current-buffer buffer
             (dolist (ws (treemacs-workspaces))
@@ -152,7 +152,8 @@ ITER: Treemacs-Iter struct"
                                     (-> treemacs-persist-file (f-read) (s-lines)))]
             (if (and (>= (length str-list) 3)
                      (--any? (s-matches? treemacs--persist-kv-regex it) str-list))
-                (setq treemacs--workspaces (treemacs--read-workspaces (make-treemacs-iter :list str-list)))
+                (setf treemacs--workspaces (treemacs--read-workspaces (make-treemacs-iter :list str-list))
+                      (treemacs-current-workspace) (car treemacs--workspaces))
               (treemacs-log "Persist file exists, but does not seem to contain any saved state."))))
       (error (treemacs-log "Error '%s' when loading the persisted workspace." e)))))
 

@@ -283,7 +283,7 @@ it on the same line."
       ,@final-form)))
 
 (defmacro treemacs-run-in-every-buffer (&rest body)
-  "Run BODY once locally in every treemacs buffer."
+  "Run BODY once locally in every treemacs buffer (and its frame)."
   (declare (debug t))
   `(dolist (frame->buffer treemacs--buffer-access)
      (-let [(--frame-- . --buffer--) frame->buffer]
