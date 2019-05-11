@@ -59,7 +59,7 @@
           (if (dired-move-to-filename nil)
               (let* ((file (dired-get-filename nil t))
                      (icon (if (file-directory-p file)
-                               treemacs-icon-closed
+                               treemacs-icon-dir-closed
                              (treemacs-icon-for-file file))))
                 (insert icon))
             (treemacs-return nil))
